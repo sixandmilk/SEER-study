@@ -71,3 +71,9 @@ Or describe it in Issues.
 - Repository baseline: SEER
 - Experiment branch: exp/ssl
 - Purpose: reproduce the baseline and conduct controlled experiments
+
+### Experiment Log
+
+- Experiment: SSL module exploration
+- Status: Not started
+- Notes: Record configuration, random seed, metrics, and conclusions for each run.
