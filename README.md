@@ -64,3 +64,10 @@ If you have any questions or suggestions, feel free to contact:
 
 
 Or describe it in Issues.
+
+
+## Local Research Notes
+
+- Repository baseline: SEER
+- Experiment branch: exp/ssl
+- Purpose: reproduce the baseline and conduct controlled experiments
