@@ -32,7 +32,10 @@
             "seed": 2021,
             "deterministic": "efficient",
             "save_true_pred": false,
-            "target_channel": null
+            "target_channel": {
+                "WF151.csv": [-1],
+                "__default__": null
+            }
         }
     },
 

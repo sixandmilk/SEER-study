@@ -17,6 +17,7 @@ from ts_benchmark.baselines.utils import (
     train_val_split,
     get_time_mark,
 )
+from ts_benchmark.data.utils import normalize_model_frequency
 from ts_benchmark.models.model_base import ModelBase, BatchMaker
 from ts_benchmark.utils.data_processing import split_time
 
@@ -224,10 +225,7 @@ class DeepForecastingModelBase(ModelBase):
         freq = pd.infer_freq(train_data.index)
         if freq == None:
             raise ValueError("Irregular time intervals")
-        elif freq[0].lower() not in ["m", "w", "b", "d", "h", "t", "s"]:
-            self.config.freq = "s"
-        else:
-            self.config.freq = freq[0].lower()
+        self.config.freq = normalize_model_frequency(freq)
 
         column_num = train_data.shape[1]
         self.config.enc_in = column_num
@@ -243,10 +241,7 @@ class DeepForecastingModelBase(ModelBase):
         freq = pd.infer_freq(train_data.index)
         if freq == None:
             raise ValueError("Irregular time intervals")
-        elif freq[0].lower() not in ["m", "w", "b", "d", "h", "t", "s"]:
-            self.config.freq = "s"
-        else:
-            self.config.freq = freq[0].lower()
+        self.config.freq = normalize_model_frequency(freq)
 
         column_num = train_data.shape[1]
         self.config.enc_in = column_num
@@ -259,10 +254,7 @@ class DeepForecastingModelBase(ModelBase):
         freq = pd.infer_freq(train_data.index)
         if freq == None:
             raise ValueError("Irregular time intervals")
-        elif freq[0].lower() not in ["m", "w", "b", "d", "h", "t", "s"]:
-            self.config.freq = "s"
-        else:
-            self.config.freq = freq[0].lower()
+        self.config.freq = normalize_model_frequency(freq)
 
         column_num = train_data.shape[1]
         self.config.enc_in = column_num

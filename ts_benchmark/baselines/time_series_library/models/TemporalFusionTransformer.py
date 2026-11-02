@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ts_benchmark.data.utils import get_frequency_granularity
 from ..layers.Embed import DataEmbedding, TemporalEmbedding
 from torch import Tensor
 from typing import Optional
@@ -21,13 +22,13 @@ datatype_dict = {
 
 def get_known_len(embed_type, freq):
     if embed_type != "timeF":
-        if freq == "t":
+        if get_frequency_granularity(freq) == "t":
             return 5
         else:
             return 4
     else:
         freq_map = {"h": 4, "t": 5, "s": 6, "m": 1, "a": 1, "w": 2, "d": 3, "b": 3}
-        return freq_map[freq]
+        return freq_map[get_frequency_granularity(freq)]
 
 
 class TFTTemporalEmbedding(TemporalEmbedding):

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ts_benchmark.data.utils import get_frequency_granularity
 from torch.nn.utils import weight_norm
 import math
 
@@ -83,7 +84,7 @@ class TemporalEmbedding(nn.Module):
         month_size = 13
 
         Embed = FixedEmbedding if embed_type == "fixed" else nn.Embedding
-        if freq == "t":
+        if get_frequency_granularity(freq) == "t":
             self.minute_embed = Embed(minute_size, d_model)
         self.hour_embed = Embed(hour_size, d_model)
         self.weekday_embed = Embed(weekday_size, d_model)
@@ -108,7 +109,7 @@ class TimeFeatureEmbedding(nn.Module):
         super(TimeFeatureEmbedding, self).__init__()
 
         freq_map = {"h": 4, "t": 5, "s": 6, "m": 1, "a": 1, "w": 2, "d": 3, "b": 3}
-        d_inp = freq_map[freq]
+        d_inp = freq_map[get_frequency_granularity(freq)]
         self.embed = nn.Linear(d_inp, d_model, bias=False)
 
     def forward(self, x):

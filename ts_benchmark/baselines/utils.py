@@ -10,6 +10,7 @@ from ts_benchmark.baselines.time_series_library.utils.timefeatures import (
     time_features,
 )
 from ts_benchmark.utils.data_processing import split_time
+from ts_benchmark.data.utils import get_frequency_granularity
 
 
 def adjust_learning_rate(optimizer, epoch, args):
@@ -188,6 +189,11 @@ def decompose_time(
     :return: Array of timestamp components.
     """
     df_stamp = pd.DataFrame(pd.to_datetime(time), columns=["date"])
+    # ``config.freq`` may preserve a minute multiplier (e.g. ``15min``).
+    # Reduce it to the minute granularity for component selection while
+    # retaining the full value for pandas date-range generation elsewhere.
+    freq_key = get_frequency_granularity(freq)
+
     freq_scores = {
         "m": 0,
         "w": 1,
@@ -199,15 +205,15 @@ def decompose_time(
     }
     max_score = max(freq_scores.values())
     df_stamp["month"] = df_stamp.date.dt.month
-    if freq_scores.get(freq, max_score) >= 1:
+    if freq_scores.get(freq_key, max_score) >= 1:
         df_stamp["day"] = df_stamp.date.dt.day
-    if freq_scores.get(freq, max_score) >= 2:
+    if freq_scores.get(freq_key, max_score) >= 2:
         df_stamp["weekday"] = df_stamp.date.dt.weekday
-    if freq_scores.get(freq, max_score) >= 3:
+    if freq_scores.get(freq_key, max_score) >= 3:
         df_stamp["hour"] = df_stamp.date.dt.hour
-    if freq_scores.get(freq, max_score) >= 4:
+    if freq_scores.get(freq_key, max_score) >= 4:
         df_stamp["minute"] = df_stamp.date.dt.minute
-    if freq_scores.get(freq, max_score) >= 5:
+    if freq_scores.get(freq_key, max_score) >= 5:
         df_stamp["second"] = df_stamp.date.dt.second
     return df_stamp.drop(["date"], axis=1).values
 
