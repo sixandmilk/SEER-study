@@ -152,6 +152,9 @@ class RollingForecast(ForecastingStrategy):
     - horizon (int): The length of each prediction;
     - tv_ratio (float): The ratio of the train-validation series when performing
       train-test split;
+    - num_test (int, optional): The number of final observations reserved for
+      testing. When provided, this takes precedence over ``tv_ratio`` and the
+      validation length is set to the same value;
     - train_ratio_in_tv (float): The ratio of the training series when performing
       train-validation split;
     - stride (int): Rolling stride, i.e. the interval between two windows;
@@ -172,6 +175,7 @@ class RollingForecast(ForecastingStrategy):
     REQUIRED_CONFIGS = [
         "horizon",
         "tv_ratio",
+        "num_test",
         "train_ratio_in_tv",
         "stride",
         "num_rollings",
@@ -192,6 +196,14 @@ class RollingForecast(ForecastingStrategy):
         :param stride: Rolling stride.
         :return: Index list of the rolling windows.
         """
+        if horizon <= 0:
+            raise ValueError("horizon must be greater than 0")
+        if stride <= 0:
+            raise ValueError("stride must be greater than 0")
+        if test_length < horizon:
+            raise ValueError(
+                "horizon cannot be greater than the available test-set length"
+            )
         data_len = train_length + test_length
         index_list = list(range(train_length, data_len - horizon + 1, stride)) + (
             [data_len - horizon] if (test_length - horizon) % stride != 0 else []
@@ -203,6 +215,7 @@ class RollingForecast(ForecastingStrategy):
         series: pd.DataFrame,
         meta_info: Optional[pd.Series],
         tv_ratio: float,
+        num_test: Optional[int] = None,
     ) -> Tuple[int, int]:
         """
         Gets the size of the train-validation series and the test series
@@ -211,16 +224,57 @@ class RollingForecast(ForecastingStrategy):
         :param meta_info: Meta-information of the target series.
         :param tv_ratio: The ratio of the train-validation series when performing
             train-test split;
+        :param num_test: If provided, the exact number of final observations used
+            as the test target range. The remaining observations are the
+            train-validation series.
         :return: The length of the train-validation series, and the length of the test series.
         """
         data_len = int(self._get_meta_info(meta_info, "length", len(series)))
-        train_length = int(tv_ratio * data_len)
-        test_length = data_len - train_length
+        if num_test is not None:
+            if isinstance(num_test, bool) or not isinstance(num_test, (int, np.integer)):
+                raise ValueError("num_test must be a positive integer")
+            if num_test <= 0 or num_test >= data_len:
+                raise ValueError(
+                    f"num_test must be greater than 0 and less than the data length ({data_len})"
+                )
+            test_length = int(num_test)
+            train_length = data_len - test_length
+        else:
+            train_length = int(tv_ratio * data_len)
+            test_length = data_len - train_length
         if train_length <= 0 or test_length <= 0:
             raise ValueError(
                 "The length of training or testing data is less than or equal to 0"
             )
         return train_length, test_length
+
+    def _get_num_test(self, series_name: str) -> Optional[int]:
+        """Return the optional exact test-set length for a series."""
+        if "num_test" not in self.strategy_config:
+            return None
+        return self._get_scalar_config_value("num_test", series_name)
+
+    @staticmethod
+    def _get_train_ratio_in_tv(
+        train_ratio_in_tv: float,
+        train_valid_length: int,
+        num_test: Optional[int],
+    ) -> float:
+        """Use a validation set equal to ``num_test`` when exact testing is enabled.
+
+        Here ``train_length`` is the boundary between train+validation and test.
+        Therefore, with ``num_test`` enabled, the last ``num_test`` observations
+        before the test range are validation observations and the preceding
+        observations are the actual training observations.
+        """
+        if num_test is None:
+            return train_ratio_in_tv
+        if train_valid_length <= num_test:
+            raise ValueError(
+                "num_test must be smaller than the train-validation data length "
+                "when num_vali is set equal to num_test"
+            )
+        return (train_valid_length - num_test) / train_valid_length
 
     def _execute(
         self,
@@ -268,8 +322,14 @@ class RollingForecast(ForecastingStrategy):
             "train_ratio_in_tv", series_name
         )
         tv_ratio = self._get_scalar_config_value("tv_ratio", series_name)
+        num_test = self._get_num_test(series_name)
 
-        train_length, test_length = self._get_split_lens(series, meta_info, tv_ratio)
+        train_length, test_length = self._get_split_lens(
+            series, meta_info, tv_ratio, num_test
+        )
+        train_ratio_in_tv = self._get_train_ratio_in_tv(
+            train_ratio_in_tv, train_length, num_test
+        )
         train_valid_data, test_data = split_time(series, train_length)
 
         target_train_valid_data, exog_data = split_channel(
@@ -367,8 +427,14 @@ class RollingForecast(ForecastingStrategy):
             "train_ratio_in_tv", series_name
         )
         tv_ratio = self._get_scalar_config_value("tv_ratio", series_name)
+        num_test = self._get_num_test(series_name)
 
-        train_length, test_length = self._get_split_lens(series, meta_info, tv_ratio)
+        train_length, test_length = self._get_split_lens(
+            series, meta_info, tv_ratio, num_test
+        )
+        train_ratio_in_tv = self._get_train_ratio_in_tv(
+            train_ratio_in_tv, train_length, num_test
+        )
         train_valid_data, test_data = split_time(series, train_length)
 
         target_train_valid_data, exog_train_valid_data = split_channel(

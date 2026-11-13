@@ -1,8 +1,22 @@
+
+# Dataset and experiment results
 dataset/
 result/
+
+# IDE settings
 .idea/
 .vscode/
-.git
-*.DS_Store
+
+# Git
+.git/
+
+# Python environment and cache
 venv/
 **/__pycache__/
+*.py[cod]
+
+# System files
+.DS_Store
+
+# Experiment logs
+logs/WF151_SEER/*

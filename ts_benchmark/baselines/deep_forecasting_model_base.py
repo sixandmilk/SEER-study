@@ -51,7 +51,19 @@ class Config:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-        if hasattr(self, "horizon"):
+        # ``pred_len`` is the model-facing name, while the training/evaluation
+        # code historically used ``horizon``.  Keep the two aliases synchronized
+        # so a benchmark-level recommended ``horizon`` cannot silently override
+        # an explicitly supplied model ``pred_len`` (or vice versa).
+        if hasattr(self, "pred_len"):
+            if hasattr(self, "horizon") and self.horizon != self.pred_len:
+                logger.info(
+                    "Using explicit pred_len=%s instead of horizon=%s.",
+                    self.pred_len,
+                    self.horizon,
+                )
+            setattr(self, "horizon", self.pred_len)
+        elif hasattr(self, "horizon"):
             logger.warning(
                 "The model parameter horizon is deprecated. Please use pred_len."
             )
