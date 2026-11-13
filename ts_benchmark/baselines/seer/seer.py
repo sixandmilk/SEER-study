@@ -31,6 +31,14 @@ MODEL_HYPER_PARAMS = {
     "loss": "MAE",
     "scaling": 0.5,
     "score_threshold": 0.2,
+    # The graph branch is opt-in so existing non-WF151 experiments keep the
+    # original SEER computation unless a compatible spectral cache is supplied.
+    "graph_spectral_enabled": False,
+    "graph_hidden_dim": 32,
+    "graph_spectral_knn_k": 10,
+    "graph_spectral_cache_dir": None,
+    "graph_spectral_data_path": None,
+    "graph_spectral_target_channel": None,
 }
 
 
@@ -63,6 +71,14 @@ class SEER(DeepForecastingModelBase):
         Initializes the underlying SEERModel instance using the unified configuration.
         """
         return SEERModel(self.config)
+
+    def multi_forecasting_hyper_param_tune(self, train_data):
+        super().multi_forecasting_hyper_param_tune(train_data)
+        self.config.model_channel_order = [str(name) for name in train_data.columns]
+
+    def single_forecasting_hyper_param_tune(self, train_data):
+        super().single_forecasting_hyper_param_tune(train_data)
+        self.config.model_channel_order = [str(name) for name in train_data.columns]
 
     def _process(self, input, target, input_mark, target_mark):
         """

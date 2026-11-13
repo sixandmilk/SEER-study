@@ -5,6 +5,10 @@ import torch.nn.functional as F
 from ts_benchmark.baselines.seer.layers.linear_extractor_cluster import (
     Linear_extractor_cluster,
 )
+from ts_benchmark.baselines.seer.layers.graph_spectral_branch import (
+    GatedResidualFusion,
+    GraphSpectralBranch,
+)
 
 
 class PositionalEmbedding(nn.Module):
@@ -48,6 +52,37 @@ class AugmentedEmbedding(nn.Module):
         # Positional embedding
         self.position_embedding = PositionalEmbedding(d_model)
         self.cluster = Linear_extractor_cluster(config)
+        self.graph_spectral_enabled = bool(
+            getattr(config, "graph_spectral_enabled", False)
+        )
+        if self.graph_spectral_enabled:
+            cache_dir = getattr(config, "graph_spectral_cache_dir", None)
+            channel_order = getattr(config, "model_channel_order", None)
+            if cache_dir is None:
+                raise ValueError(
+                    "graph_spectral_cache_dir is required when "
+                    "graph_spectral_enabled=True"
+                )
+            if channel_order is None:
+                raise ValueError(
+                    "model_channel_order is required to validate graph node order "
+                    "when graph_spectral_enabled=True"
+                )
+            self.graph_spectral_branch = GraphSpectralBranch(
+                d_model=d_model,
+                graph_hidden_dim=int(getattr(config, "graph_hidden_dim", 32)),
+                channel_count=int(config.enc_in),
+                patch_count=int((config.seq_len - patch_len) / stride + 2),
+                seq_len=config.seq_len,
+                patch_len=patch_len,
+                stride=stride,
+                graph_k=int(getattr(config, "graph_spectral_knn_k", 10)),
+                cache_dir=cache_dir,
+                data_path=getattr(config, "graph_spectral_data_path", None),
+                channel_order=list(channel_order),
+                target_channel=getattr(config, "graph_spectral_target_channel", None),
+            )
+            self.gated_residual_fusion = GatedResidualFusion(d_model)
         # Residual dropout
         self.dropout = nn.Dropout(p=dropout)
 
@@ -60,7 +95,19 @@ class AugmentedEmbedding(nn.Module):
         cluster_input = x.reshape(x.shape[0] * x.shape[1] * x.shape[2], x.shape[3])
         moe_embedding, L_importance = self.cluster(cluster_input)
         moe_embedding = moe_embedding.reshape(-1, patch_num, self.d_model)
-        patch_embedding = moe_embedding + self.position_embedding(z) + shared_embedding
+        h_seer = moe_embedding + shared_embedding
+        if self.graph_spectral_enabled:
+            # The existing [B*C,N,D] layout is already channel-major and
+            # therefore matches cache node_index=channel_index*N+patch_position.
+            h0 = shared_embedding.reshape(x.shape[0], x.shape[1] * patch_num, self.d_model)
+            h_graph = self.graph_spectral_branch(h0)
+            h_seer_nodes = h_seer.reshape(
+                x.shape[0], x.shape[1] * patch_num, self.d_model
+            )
+            h_fused = self.gated_residual_fusion(h_seer_nodes, h_graph)
+            h_seer = h_fused.reshape(-1, patch_num, self.d_model)
+        # Position embedding remains added exactly once, after branch fusion.
+        patch_embedding = h_seer + self.position_embedding(z)
         return patch_embedding, L_importance
 
     def augmented_series_embedding(self, x_enc, x_mark):

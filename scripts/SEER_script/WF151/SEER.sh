@@ -23,7 +23,7 @@ run_one() {
     local model_hyper_params
 
     model_hyper_params=$(printf \
-        '{"batch_size": 16, "d_ff": 512, "d_model": 256, "d_score": 32, "dropout": 0.1, "e_layers": 2, "head_dropout": 0, "pred_len": %s, "k": 2, "loss": "MAE", "lr": 0.0001, "lradj": "type3", "n_heads": 8, "norm": true, "num_epochs": 30, "num_experts": 4, "patch_len": 16, "patience": 5, "scaling": 1, "score_threshold": 0.5, "seq_len": 96, "stride": 8}' \
+        '{"batch_size": 16, "d_ff": 512, "d_model": 256, "d_score": 32, "dropout": 0.1, "e_layers": 2, "graph_hidden_dim": 32, "graph_spectral_cache_dir": "checkpoints/graph_spectral/WF151", "graph_spectral_data_path": "dataset/forecasting/WF151.csv", "graph_spectral_enabled": true, "graph_spectral_knn_k": 10, "graph_spectral_target_channel": [-1], "head_dropout": 0, "pred_len": %s, "k": 2, "loss": "MAE", "lr": 0.0001, "lradj": "type3", "n_heads": 8, "norm": true, "num_epochs": 30, "num_experts": 4, "patch_len": 16, "patience": 5, "scaling": 1, "score_threshold": 0.5, "seq_len": 96, "stride": 8}' \
         "$horizon")
 
     echo "[$(date '+%F %T')] start horizon=${horizon}; log=${log_file}"

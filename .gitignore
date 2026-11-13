@@ -20,3 +20,6 @@ venv/
 
 # Experiment logs
 logs/WF151_SEER/*
+
+# Offline graph-spectral caches
+checkpoints/graph_spectral/
